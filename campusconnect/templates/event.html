@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-md-8">
+      <div class="card shadow-sm">
+        <img src="{{ url_for('static', filename=event.image) }}" class="card-img-top" alt="{{ event.title }}">
+        <div class="card-body">
+          <span class="badge badge-pill badge-light category-pill">{{ event.category or 'General' }}</span>
+          <h2 class="card-title mt-2">{{ event.title }}</h2>
+          <p class="text-muted">📅 {{ event.date.strftime('%B %d, %Y') }} • {{ event.time_str or '' }} <br>📍 {{ event.location or 'TBA' }}</p>
+          <hr>
+          <h5>About this event</h5>
+          <p>{{ event.description }}</p>
+          <hr>
+          <h6>Attendees ({{ event.attendees|length }})</h6>
+          <div class="d-flex align-items-center mb-3">
+            {% for a in event.attendees %}
+              <div class="mr-2">
+                <img src="{{ url_for('static', filename='images/avatar-placeholder.png') }}" class="attendee-avatar" alt="attendee">
+              </div>
+            {% endfor %}
+          </div>
+
+          <button class="btn btn-primary" data-toggle="modal" data-target="#registerModal">Register</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card p-3 shadow-sm">
+        <h5>Event info</h5>
+        <ul class="list-unstyled text-muted">
+          <li><strong>Date:</strong> {{ event.date.strftime('%Y-%m-%d') }}</li>
+          <li><strong>Time:</strong> {{ event.time_str or 'TBA' }}</li>
+          <li><strong>Location:</strong> {{ event.location or 'TBA' }}</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Register Modal -->
+<div class="modal fade" id="registerModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form class="modal-content" method="post" action="{{ url_for('register', event_id=event.id) }}">
+      <div class="modal-header">
+        <h5 class="modal-title">Register for {{ event.title }}</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Name</label>
+          <input name="name" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input name="email" type="email" class="form-control" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-dismiss="modal" type="button">Cancel</button>
+        <button class="btn btn-primary" type="submit">Register</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

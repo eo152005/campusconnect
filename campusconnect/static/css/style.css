@@ -1,0 +1,6 @@
+body { background: #f6f8fb; }
+.card-img-top { height: 180px; object-fit: cover; }
+.hero { background: url('/static/images/hero.jpg') center/cover no-repeat; height: 260px; display:flex; align-items:center; justify-content:center; color:#0b2b4a }
+.hero h1 { background: rgba(255,255,255,0.85); padding: 10px 20px; border-radius:8px; }
+.category-pill { font-size: 0.8rem }
+.attendee-avatar { width:36px; height:36px; border-radius:50%; object-fit:cover; margin-right:-10px; border:2px solid #fff }

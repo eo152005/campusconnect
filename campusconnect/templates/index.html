@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="hero mb-4">
+  <h1>Stay Connected</h1>
+</div>
+
+<div class="container">
+  <div class="row mb-3">
+    <div class="col-12 col-md-6">
+      <form class="form-inline">
+        <input class="form-control w-75 mr-2" placeholder="Search events..." name="q" value="{{ request.args.get('q','') }}">
+        <button class="btn btn-outline-secondary">Search</button>
+      </form>
+    </div>
+    <div class="col-md-6 text-right text-muted align-self-center">Showing {{ events|length }} events</div>
+  </div>
+
+  <div class="row">
+    {% for e in events %}
+      <div class="col-12 col-md-4 mb-4">
+        <div class="card h-100 shadow-sm">
+          <img src="{{ url_for('static', filename=e.image) }}" class="card-img-top" alt="{{ e.title }}">
+          <div class="card-body">
+            <span class="badge badge-pill badge-light category-pill">{{ e.category or 'General' }}</span>
+            <h5 class="card-title mt-2">{{ e.title }}</h5>
+            <p class="mb-1 text-muted"><small>📅 {{ e.date.strftime('%B %d, %Y') }} • {{ e.time_str or '' }}</small></p>
+            <p class="mb-2 text-muted"><small>📍 {{ e.location or 'TBA' }}</small></p>
+            <a href="{{ url_for('event_detail', event_id=e.id) }}" class="btn btn-outline-primary btn-sm">View details</a>
+          </div>
+          <div class="card-footer bg-white">
+            <small class="text-muted">{{ e.attendees|length }} attending</small>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
