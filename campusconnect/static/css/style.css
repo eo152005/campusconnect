@@ -1,4 +1,102 @@
-body { background: #f6f8fb; }
+/* --- Global & Utility --- */
+:root {
+    --primary-blue: #007bff;
+    --dark-text: #343a40;
+    --light-grey: #6c757d;
+}
+
+body { 
+    background: #f6f8fb; 
+    color: var(--dark-text); /* Set default text color */
+}
+
+/* --- Navigation Customization --- */
+.custom-navbar {
+    padding: 15px 50px; /* Adjust padding for a cleaner look */
+    border-bottom: 1px solid #e9ecef; /* Subtle separation line */
+}
+
+.logo-link {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--primary-blue) !important; /* Ensure blue text */
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+}
+
+.logo-icon {
+    font-size: 28px;
+    margin-right: 8px;
+    color: var(--primary-blue);
+}
+
+.nav-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+/* --- Custom Button Styles (Matching the target image) --- */
+.btn-primary-custom, .btn-secondary-custom {
+    padding: 8px 15px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    transition: all 0.2s ease-in-out;
+}
+
+.icon-left {
+    margin-right: 8px;
+}
+
+/* Primary Button (Create Event) */
+.btn-primary-custom {
+    background-color: var(--primary-blue);
+    color: white !important;
+    border: 1px solid var(--primary-blue);
+}
+.btn-primary-custom:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+}
+
+/* Secondary Button (Calendar) */
+.btn-secondary-custom {
+    background-color: white;
+    color: var(--dark-text) !important;
+    border: 1px solid #ced4da;
+}
+.btn-secondary-custom:hover {
+    background-color: #f8f9fa;
+    border-color: #adb5bd;
+}
+
+
+/* --- Hero Section Styling (For 'Stay Connected' and tagline) --- */
+.hero-text {
+    text-align: center;
+    padding: 80px 20px;
+}
+
+.hero-text h1 {
+    font-size: 60px;
+    font-weight: 800;
+    margin-bottom: 15px;
+    color: var(--dark-text);
+}
+
+.tagline {
+    font-size: 20px;
+    color: var(--light-grey);
+    max-width: 700px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+/* --- Existing Styles --- */
 .card-img-top { height: 180px; object-fit: cover; }
 .hero { background: url('/static/images/hero.jpg') center/cover no-repeat; height: 260px; display:flex; align-items:center; justify-content:center; color:#0b2b4a }
 .hero h1 { background: rgba(255,255,255,0.85); padding: 10px 20px; border-radius:8px; }

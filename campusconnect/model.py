@@ -1,6 +1,8 @@
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from database import db # Assumes 'db' is already imported from your new database.py
+from database import db  # Assumes 'db' is already imported from your new database.py
+from models import Event, Attendee, User
+
 
 class Event(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -11,7 +13,9 @@ class Event(db.Model):
     location = db.Column(db.String(200), nullable=True)
     description = db.Column(db.Text, nullable=True)
     image = db.Column(db.String(300), nullable=True)  # path under static/
-    attendees = db.relationship('Attendee', backref='event', cascade='all, delete-orphan')
+    attendees = db.relationship(
+        'Attendee', backref='event', cascade='all, delete-orphan')
+
 
 class Attendee(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -20,11 +24,14 @@ class Attendee(db.Model):
     event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=False)
 
 # --- NEW: User Model for Authentication ---
+
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256)) # Stores the hashed password
+    password_hash = db.Column(db.String(256))  # Stores the hashed password
+    is_admin = db.Column(db.Boolean, default=False)  # Admin flag
 
     def set_password(self, password):
         """Hashes the password before storing it."""
@@ -36,3 +43,7 @@ class User(UserMixin, db.Model):
 
     def __repr__(self):
         return f'<User {self.username}>'
+
+    @property
+    def is_admin_user(self):
+        return self.is_admin

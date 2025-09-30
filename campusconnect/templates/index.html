@@ -1,18 +1,22 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="hero mb-4">
-  <h1>Stay Connected</h1>
-</div>
-
 <div class="container">
-  <div class="row mb-3">
-    <div class="col-12 col-md-6">
+  <div class="hero-text">
+    <h1>Stay Connected</h1>
+    <p class="tagline">Discover, join, and manage events happening all around campus. Never miss out on an opportunity to learn, network, or have fun.</p>
+  </div>
+
+  <div class="row mb-4 align-items-center">
+    <div class="col-12 col-md-8">
       <form class="form-inline">
-        <input class="form-control w-75 mr-2" placeholder="Search events..." name="q" value="{{ request.args.get('q','') }}">
+        <input class="form-control flex-grow-1 mr-2" placeholder="Search events..." name="q" value="{{ request.args.get('q','') }}">
         <button class="btn btn-outline-secondary">Search</button>
       </form>
     </div>
-    <div class="col-md-6 text-right text-muted align-self-center">Showing {{ events|length }} events</div>
+    
+    <div class="col-12 col-md-4 text-right text-muted">
+      Showing {{ events|length }} events
+    </div>
   </div>
 
   <div class="row">
