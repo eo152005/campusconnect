@@ -1,10 +1,10 @@
-from models import Event, Attendee, User  # Changed from 'model' to 'models'
+from models import Event, Attendee, User
 from flask import Flask, render_template, request, redirect, url_for, flash
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
 from database import db
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
-# --- END NEW IMPORTS ---
+from sqlalchemy import inspect, text  # Add these imports
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///campusconnect.db'
@@ -13,22 +13,49 @@ app.config['SECRET_KEY'] = 'dev-secret-key-change-me'
 
 db.init_app(app)
 
-# --- NEW: Initialize Flask-Login ---
+# Initialize Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'login'  # Route to redirect unauthorized users
-# --- END NEW: Initialize Flask-Login ---
-
-# Import models after db is created and bound to the app
-
-# --- NEW: User Loader for Flask-Login ---
-
+login_manager.login_view = 'login'
 
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
-# --- END NEW: User Loader ---
 
+# --- Schema Migration Function ---
+def ensure_schema():
+    """Create or upgrade database schema to the required version."""
+    db.create_all()
+
+    # Lightweight migration: ensure User.role column exists
+    try:
+        engine = db.engine
+        inspector = inspect(engine)
+        user_columns = [col['name'] for col in inspector.get_columns('user')]
+        
+        if 'role' not in user_columns:
+            with engine.begin() as conn:
+                # Add the new column and backfill default for existing rows
+                conn.execute(text('ALTER TABLE user ADD COLUMN role VARCHAR(20)'))
+                conn.execute(text("UPDATE user SET role = 'attendee' WHERE role IS NULL"))
+                print("Added 'role' column to user table")
+    except Exception as e:
+        print(f"Schema migration note: {e}")
+
+# --- Auto-cleanup Function ---
+def cleanup_past_events():
+    """Delete events whose date is strictly before today."""
+    try:
+        today = datetime.now()
+        past_events = Event.query.filter(Event.date < today).all()
+        for event in past_events:
+            db.session.delete(event)
+        if past_events:
+            db.session.commit()
+            print(f"Cleaned up {len(past_events)} past events")
+    except Exception as e:
+        db.session.rollback()
+        print(f"Cleanup error: {e}")
 
 # --- Routes ---
 @app.route('/')
@@ -49,8 +76,6 @@ def event_detail(event_id):
     return render_template('event.html', event=e, year=datetime.now().year)
 
 # --- NEW: Delete Event Route ---
-
-
 @app.route('/event/<int:event_id>/delete', methods=['POST'])
 @login_required
 def delete_event(event_id):
@@ -64,10 +89,8 @@ def delete_event(event_id):
     return redirect(url_for('index'))
 
 # --- SECURED ROUTE ---
-
-
 @app.route('/create', methods=['GET', 'POST'])
-@login_required  # Requires a logged-in user
+@login_required
 def create_event():
     if not (current_user.is_admin_user or getattr(current_user, 'is_organizer_user', False)):
         flash('Only organizers or admins can create events.', 'danger')
@@ -94,10 +117,8 @@ def create_event():
     return render_template('create.html', year=datetime.now().year)
 
 # --- SECURED ROUTE ---
-
-
 @app.route('/edit/<int:event_id>', methods=['GET', 'POST'])
-@login_required  # Requires a logged-in user
+@login_required
 def edit_event(event_id):
     if not (current_user.is_admin_user or getattr(current_user, 'is_organizer_user', False)):
         flash('Only organizers or admins can edit events.', 'danger')
@@ -147,8 +168,6 @@ def register(event_id):
     return redirect(url_for('event_detail', event_id=event_id))
 
 # --- NEW: Authentication Routes ---
-
-
 @app.route('/user/register', methods=['GET', 'POST'])
 def register_user():
     if current_user.is_authenticated:
@@ -163,12 +182,22 @@ def register_user():
             flash('Username already taken.', 'danger')
             return render_template('register.html', year=datetime.now().year)
 
-        user = User(username=username, email=email)
+        # Auto-set first user as admin, others as attendees
+        is_first_user = User.query.count() == 0
+        role = 'admin' if is_first_user else 'attendee'
+        is_admin = is_first_user
+        
+        user = User(username=username, email=email, role=role, is_admin=is_admin)
         user.set_password(password)
 
         db.session.add(user)
         db.session.commit()
-        flash('Registration successful. You can now log in.', 'success')
+        
+        if is_first_user:
+            flash('Registration successful! You are the first user and have been granted admin privileges.', 'success')
+        else:
+            flash('Registration successful. You can now log in.', 'success')
+        
         return redirect(url_for('login'))
 
     return render_template('register.html', year=datetime.now().year)
@@ -212,84 +241,7 @@ def calendar():
     events = Event.query.order_by(Event.date).all()
     return render_template('calendar.html', events=events, year=datetime.now().year)
 
-# --- DB initialization & seeding ---
-
-
-def seed_if_empty():
-    if Event.query.count() == 0:
-        # Note: New User model requires an initial user for testing secured routes
-        admin = User(username='admin', email='admin@campus.edu', role='admin')
-        admin.set_password('password')  # Use 'password' for easy testing
-        db.session.add(admin)
-
-        e1 = Event(title='Annual Tech Fest 2024', category='Academic',
-                   date=datetime(2024, 10, 26), time_str='09:00', location='Main Auditorium',
-                   description='Join us for the biggest tech fest of the year...',
-                   image='images/event1.jpg')
-        e2 = Event(title='Startup Pitch Night', category='Workshop',
-                   date=datetime(2024, 11, 15), time_str='18:30',
-                   location='Innovation Hub, Room 201',
-                   description='Pitch your startup ideas to a panel...',
-                   image='images/event2.jpg')
-        e3 = Event(title='University Soccer Championship', category='Sports',
-                   date=datetime(2024, 11, 2), time_str='14:00',
-                   location='North Campus Stadium',
-                   description='Inter-department soccer tournament.',
-                   image='images/event3.jpg')
-        db.session.add_all([e1, e2, e3])
-        db.session.commit()
-
-
-if __name__ == '__main__':
-    # Initialize the database within the application context
-    with app.app_context():
-        # Check if the database file needs to be created
-        need_init = not os.path.exists('campusconnect.db')
-
-        db.create_all()
-
-        # Ensure schema has the new columns when upgrading existing DBs
-        ensure_schema()
-
-        if need_init:
-            seed_if_empty()
-            print(
-                'Database created and seeded: campusconnect.db (Includes test User: admin/password)')
-
-    app.run(debug=True)
-   
-
-# --- Admin & Maintenance Utilities ---
-
-def cleanup_past_events():
-    """Delete events whose date is strictly before today."""
-    try:
-        # Compare only date portion to avoid timezone confusion
-        today = datetime.now()
-        Event.query.filter(Event.date < today).delete(synchronize_session=False)
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-
-
-def ensure_schema():
-    """Best-effort lightweight migration to add missing columns."""
-    try:
-        # Works for SQLite; harmless on others when supported
-        engine = db.get_engine()
-        with engine.connect() as conn:
-            # Check for 'role' column in user table
-            result = conn.exec_driver_sql("PRAGMA table_info('user')")
-            columns = [row[1] for row in result]
-            if 'role' not in columns:
-                conn.exec_driver_sql("ALTER TABLE user ADD COLUMN role VARCHAR(20) DEFAULT 'attendee'")
-    except Exception:
-        # Do not crash app if migration fails; developer can recreate DB
-        pass
-
-
 # --- Admin: User Management ---
-
 @app.route('/admin/users')
 @login_required
 def admin_users():
@@ -329,4 +281,46 @@ def set_user_role(user_id):
         db.session.rollback()
         flash(f'Error updating role: {e}', 'danger')
     return redirect(url_for('admin_users'))
-  
+
+# --- DB initialization & seeding ---
+def seed_if_empty():
+    if User.query.count() == 0:  # Check users instead of events
+        # Create admin user with proper role
+        admin = User(username='admin', email='admin@campus.edu', role='admin', is_admin=True)
+        admin.set_password('password')
+        db.session.add(admin)
+
+        # Create sample events
+        e1 = Event(title='Annual Tech Fest 2024', category='Academic',
+                   date=datetime(2024, 10, 26), time_str='09:00', location='Main Auditorium',
+                   description='Join us for the biggest tech fest of the year...',
+                   image='images/event1.jpg')
+        e2 = Event(title='Startup Pitch Night', category='Workshop',
+                   date=datetime(2024, 11, 15), time_str='18:30',
+                   location='Innovation Hub, Room 201',
+                   description='Pitch your startup ideas to a panel...',
+                   image='images/event2.jpg')
+        e3 = Event(title='University Soccer Championship', category='Sports',
+                   date=datetime(2024, 11, 2), time_str='14:00',
+                   location='North Campus Stadium',
+                   description='Inter-department soccer tournament.',
+                   image='images/event3.jpg')
+        db.session.add_all([e1, e2, e3])
+        db.session.commit()
+        print("Database seeded with admin user and sample events")
+
+if __name__ == '__main__':
+    with app.app_context():
+        # Ensure schema is up-to-date
+        ensure_schema()
+        
+        # Check if we need to seed
+        need_init = User.query.count() == 0
+        
+        if need_init:
+            seed_if_empty()
+            print('Database created and seeded: campusconnect.db (Includes test User: admin/password)')
+        else:
+            print('Database loaded successfully')
+
+    app.run(debug=True)

@@ -1,18 +1,79 @@
 {% extends 'base.html' %}
+
+{% block title %}Event Calendar - CampusConnect{% endblock %}
+
 {% block content %}
-<div class="container py-5 text-center">
-  <h2>Calendar (simple list)</h2>
-  <ul class="list-group mt-4">
-    {% for e in events %}
-      <li class="list-group-item d-flex justify-content-between align-items-center">
-        <div>
-          <strong>{{ e.title }}</strong><br>
-          <small class="text-muted">{{ e.date.strftime('%B %d, %Y') }} • {{ e.time_str or '' }}</small>
+<div class="container py-5">
+  <div class="row">
+    <div class="col-12 text-center">
+      <h2>Event Calendar</h2>
+      <p class="lead">Upcoming events at a glance</p>
+    </div>
+  </div>
+
+  {% if events %}
+  <div class="row justify-content-center mt-4">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">Upcoming Events ({{ events|length }})</h5>
         </div>
-        <a href="{{ url_for('event_detail', event_id=e.id) }}" class="btn btn-sm btn-outline-primary">Open</a>
-      </li>
-    {% endfor %}
-  </ul>
+        <div class="list-group list-group-flush">
+          {% for e in events %}
+          <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-center">
+              <div class="flex-grow-1">
+                <h6 class="mb-1 text-primary">{{ e.title }}</h6>
+                <p class="mb-1 small text-muted">
+                  <i class="fas fa-calendar-alt"></i> {{ e.date.strftime('%A, %B %d, %Y') }}
+                  {% if e.time_str %}
+                  • <i class="fas fa-clock"></i> {{ e.time_str }}
+                  {% endif %}
+                </p>
+                {% if e.location %}
+                <p class="mb-1 small text-muted">
+                  <i class="fas fa-map-marker-alt"></i> {{ e.location }}
+                </p>
+                {% endif %}
+                {% if e.category %}
+                <span class="badge bg-secondary">{{ e.category }}</span>
+                {% endif %}
+              </div>
+              <div class="ms-3">
+                <a href="{{ url_for('event_detail', event_id=e.id) }}" class="btn btn-sm btn-outline-primary">
+                  View Details
+                </a>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="row justify-content-center mt-5">
+    <div class="col-md-6 text-center">
+      <div class="card">
+        <div class="card-body py-5">
+          <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+          <h5>No Upcoming Events</h5>
+          <p class="text-muted">Check back later for new events!</p>
+          {% if current_user.is_authenticated and (current_user.is_admin_user or current_user.is_organizer_user) %}
+          <a href="{{ url_for('create_event') }}" class="btn btn-primary mt-3">Create First Event</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="row mt-4">
+    <div class="col-12 text-center">
+      <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Home
+      </a>
+    </div>
+  </div>
 </div>
 {% endblock %}
-
