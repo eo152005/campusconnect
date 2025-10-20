@@ -40,9 +40,16 @@
         </a>
 
         {% if current_user.is_authenticated %}
+        {% if current_user.is_admin_user or (current_user.role=='organizer') %}
         <a class="btn btn-primary-custom mr-2" href="{{ url_for('create_event') }}">
           <i class="fas fa-plus icon-left"></i> Create Event
         </a>
+        {% endif %}
+        {% if current_user.is_admin_user %}
+        <a class="btn btn-warning mr-2" href="{{ url_for('admin_users') }}">
+          <i class="fas fa-user-shield icon-left"></i> Admin
+        </a>
+        {% endif %}
         <a class="btn btn-secondary-custom" href="{{ url_for('logout') }}">
           <i class="fas fa-sign-out-alt icon-left"></i> Logout ({{ current_user.username }})
         </a>

@@ -1,6 +1,6 @@
 from models import Event, Attendee, User  # Changed from 'model' to 'models'
 from flask import Flask, render_template, request, redirect, url_for, flash
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 from database import db
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
@@ -33,6 +33,8 @@ def load_user(user_id):
 # --- Routes ---
 @app.route('/')
 def index():
+    # Auto-clean past events before listing
+    cleanup_past_events()
     q = request.args.get('q', '').strip().lower()
     events = Event.query.order_by(Event.date).all()
     if q:
@@ -67,6 +69,9 @@ def delete_event(event_id):
 @app.route('/create', methods=['GET', 'POST'])
 @login_required  # Requires a logged-in user
 def create_event():
+    if not (current_user.is_admin_user or getattr(current_user, 'is_organizer_user', False)):
+        flash('Only organizers or admins can create events.', 'danger')
+        return redirect(url_for('index'))
     if request.method == 'POST':
         title = request.form['title']
         category = request.form.get('category')
@@ -94,6 +99,9 @@ def create_event():
 @app.route('/edit/<int:event_id>', methods=['GET', 'POST'])
 @login_required  # Requires a logged-in user
 def edit_event(event_id):
+    if not (current_user.is_admin_user or getattr(current_user, 'is_organizer_user', False)):
+        flash('Only organizers or admins can edit events.', 'danger')
+        return redirect(url_for('event_detail', event_id=event_id))
     e = Event.query.get_or_404(event_id)
 
     if request.method == 'POST':
@@ -199,6 +207,8 @@ def logout():
 
 @app.route('/calendar')
 def calendar():
+    # Auto-clean past events before listing
+    cleanup_past_events()
     events = Event.query.order_by(Event.date).all()
     return render_template('calendar.html', events=events, year=datetime.now().year)
 
@@ -208,7 +218,7 @@ def calendar():
 def seed_if_empty():
     if Event.query.count() == 0:
         # Note: New User model requires an initial user for testing secured routes
-        admin = User(username='admin', email='admin@campus.edu')
+        admin = User(username='admin', email='admin@campus.edu', role='admin')
         admin.set_password('password')  # Use 'password' for easy testing
         db.session.add(admin)
 
@@ -238,11 +248,85 @@ if __name__ == '__main__':
 
         db.create_all()
 
+        # Ensure schema has the new columns when upgrading existing DBs
+        ensure_schema()
+
         if need_init:
             seed_if_empty()
             print(
                 'Database created and seeded: campusconnect.db (Includes test User: admin/password)')
 
     app.run(debug=True)
+   
 
+# --- Admin & Maintenance Utilities ---
+
+def cleanup_past_events():
+    """Delete events whose date is strictly before today."""
+    try:
+        # Compare only date portion to avoid timezone confusion
+        today = datetime.now()
+        Event.query.filter(Event.date < today).delete(synchronize_session=False)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+def ensure_schema():
+    """Best-effort lightweight migration to add missing columns."""
+    try:
+        # Works for SQLite; harmless on others when supported
+        engine = db.get_engine()
+        with engine.connect() as conn:
+            # Check for 'role' column in user table
+            result = conn.exec_driver_sql("PRAGMA table_info('user')")
+            columns = [row[1] for row in result]
+            if 'role' not in columns:
+                conn.exec_driver_sql("ALTER TABLE user ADD COLUMN role VARCHAR(20) DEFAULT 'attendee'")
+    except Exception:
+        # Do not crash app if migration fails; developer can recreate DB
+        pass
+
+
+# --- Admin: User Management ---
+
+@app.route('/admin/users')
+@login_required
+def admin_users():
+    if not current_user.is_admin_user:
+        flash('Admins only.', 'danger')
+        return redirect(url_for('index'))
+    users = User.query.order_by(User.username).all()
+    return render_template('admin_users.html', users=users, year=datetime.now().year)
+
+
+@app.route('/admin/users/<int:user_id>/role', methods=['POST'])
+@login_required
+def set_user_role(user_id):
+    if not current_user.is_admin_user:
+        flash('Admins only.', 'danger')
+        return redirect(url_for('admin_users'))
+    target = User.query.get_or_404(user_id)
+    new_role = request.form.get('role', 'attendee')
+    if new_role not in ('attendee', 'organizer', 'admin'):
+        flash('Invalid role.', 'danger')
+        return redirect(url_for('admin_users'))
+
+    # Prevent removing the last admin
+    if target.role == 'admin' and new_role != 'admin':
+        num_admins = User.query.filter_by(role='admin').count()
+        if num_admins <= 1:
+            flash('Cannot remove the last remaining admin.', 'warning')
+            return redirect(url_for('admin_users'))
+
+    target.role = new_role
+    # Keep legacy flag in sync for now
+    target.is_admin = (new_role == 'admin')
+    try:
+        db.session.commit()
+        flash(f"Updated role for {target.username} to {new_role}.", 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating role: {e}', 'danger')
+    return redirect(url_for('admin_users'))
   

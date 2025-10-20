@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h3 class="mb-3">Manage Users</h3>
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead>
+            <tr>
+              <th>Username</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th style="width: 260px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in users %}
+            <tr>
+              <td>{{ u.username }}</td>
+              <td>{{ u.email }}</td>
+              <td><span class="badge badge-light">{{ u.role or (u.is_admin and 'admin' or 'attendee') }}</span></td>
+              <td>
+                <form method="post" action="{{ url_for('set_user_role', user_id=u.id) }}" class="form-inline">
+                  <select name="role" class="form-control mr-2">
+                    <option value="attendee" {{ 'selected' if u.role=='attendee' else '' }}>Attendee</option>
+                    <option value="organizer" {{ 'selected' if u.role=='organizer' else '' }}>Organizer</option>
+                    <option value="admin" {{ 'selected' if u.role=='admin' else '' }}>Admin</option>
+                  </select>
+                  <button class="btn btn-primary btn-sm" type="submit">Update</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
