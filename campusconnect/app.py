@@ -4,6 +4,7 @@ from datetime import datetime
 import os
 from database import db
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
+from sqlalchemy import text, inspect
 # --- END NEW IMPORTS ---
 
 app = Flask(__name__)
@@ -233,6 +234,14 @@ def seed_if_empty():
 def ensure_schema():
     """Create all database tables if they do not already exist."""
     db.create_all()
+
+    # Lightweight migration: ensure 'role' column exists on 'user' table
+    inspector = inspect(db.engine)
+    user_columns = {col['name'] for col in inspector.get_columns('user')}
+    if 'role' not in user_columns:
+        # SQLite supports adding a column via ALTER TABLE ADD COLUMN
+        db.session.execute(text("ALTER TABLE user ADD COLUMN role VARCHAR(20) DEFAULT 'attendee'"))
+        db.session.commit()
 
 
 if __name__ == '__main__':
