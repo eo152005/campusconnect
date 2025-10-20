@@ -1,9 +1,8 @@
-from models import Event, Attendee, User  # Import the new User model
+from models import Event, Attendee, User  # Changed from 'model' to 'models'
 from flask import Flask, render_template, request, redirect, url_for, flash
 from datetime import datetime
 import os
 from database import db
-# --- NEW IMPORTS for Authentication ---
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
 # --- END NEW IMPORTS ---
 
@@ -245,3 +244,5 @@ if __name__ == '__main__':
                 'Database created and seeded: campusconnect.db (Includes test User: admin/password)')
 
     app.run(debug=True)
+
+  
