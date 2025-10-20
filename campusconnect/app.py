@@ -230,13 +230,18 @@ def seed_if_empty():
         db.session.commit()
 
 
+def ensure_schema():
+    """Create all database tables if they do not already exist."""
+    db.create_all()
+
+
 if __name__ == '__main__':
     # Initialize the database within the application context
     with app.app_context():
         # Check if the database file needs to be created
         need_init = not os.path.exists('campusconnect.db')
 
-        db.create_all()
+        ensure_schema()
 
         if need_init:
             seed_if_empty()
