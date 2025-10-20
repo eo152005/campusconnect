@@ -25,6 +25,7 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256))
     is_admin = db.Column(db.Boolean, default=False)
+    role = db.Column(db.String(20), default='attendee')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -37,4 +38,8 @@ class User(UserMixin, db.Model):
 
     @property
     def is_admin_user(self):
-        return self.is_admin
+        return (self.role == 'admin') or bool(self.is_admin)
+
+    @property
+    def is_organizer_user(self):
+        return self.role == 'organizer'
