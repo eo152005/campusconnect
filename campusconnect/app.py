@@ -4,6 +4,7 @@ from datetime import datetime
 import os
 from database import db
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
+from sqlalchemy import inspect, text
 # --- END NEW IMPORTS ---
 
 app = Flask(__name__)
@@ -231,15 +232,36 @@ def seed_if_empty():
 
 
 def ensure_schema():
-    """Create all database tables if they do not already exist."""
+    """Create or upgrade database schema to the required version."""
     db.create_all()
+
+    # Lightweight migration: ensure User.role column exists
+    engine = db.engine
+    inspector = inspect(engine)
+
+    try:
+        user_columns = [col['name'] for col in inspector.get_columns('user')]
+    except Exception:
+        user_columns = []
+
+    if 'role' not in user_columns:
+        with engine.begin() as conn:
+            # Add the new column and backfill default for existing rows
+            conn.execute(text('ALTER TABLE "user" ADD COLUMN role VARCHAR(20)'))
+            conn.execute(text("UPDATE \"user\" SET role = 'attendee' WHERE role IS NULL"))
+
+
+# Ensure schema is up-to-date when the app module is imported
+with app.app_context():
+    ensure_schema()
 
 
 if __name__ == '__main__':
     # Initialize the database within the application context
     with app.app_context():
-        # Check if the database file needs to be created
-        need_init = not os.path.exists('campusconnect.db')
+        # Check if the database file needs to be created in the instance folder
+        instance_db_path = os.path.join(app.instance_path, 'campusconnect.db')
+        need_init = not os.path.exists(instance_db_path)
 
         ensure_schema()
 
