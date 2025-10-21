@@ -4,12 +4,18 @@ from datetime import datetime
 import os
 from database import db
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
-from sqlalchemy import inspect, text  # Add these imports
+from sqlalchemy import inspect, text
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///campusconnect.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'dev-secret-key-change-me'
+
+# Add these configurations for file uploads
+app.config['UPLOAD_FOLDER'] = 'static/uploads'
+app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024  # 2MB max file size
+app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 db.init_app(app)
 
@@ -21,6 +27,10 @@ login_manager.login_view = 'login'
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 # --- Schema Migration Function ---
 def ensure_schema():
@@ -95,6 +105,7 @@ def create_event():
     if not (current_user.is_admin_user or getattr(current_user, 'is_organizer_user', False)):
         flash('Only organizers or admins can create events.', 'danger')
         return redirect(url_for('index'))
+    
     if request.method == 'POST':
         title = request.form['title']
         category = request.form.get('category')
@@ -102,18 +113,40 @@ def create_event():
         time_str = request.form.get('time_str')
         location = request.form.get('location')
         description = request.form.get('description')
-        image = request.form.get('image') or 'images/event1.jpg'
+        
+        # Handle file upload
+        image_filename = 'images/event1.jpg'  # default image
+        if 'image' in request.files:
+            file = request.files['image']
+            if file and file.filename != '' and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                # Create unique filename using timestamp
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_')
+                unique_filename = timestamp + filename
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+                
+                # Ensure upload directory exists
+                os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+                
+                file.save(file_path)
+                image_filename = f'uploads/{unique_filename}'
+            elif file and file.filename != '':
+                flash('Invalid file type. Please upload an image (PNG, JPG, JPEG, GIF, WEBP).', 'danger')
+                return redirect(url_for('create_event'))
+        
         try:
             date = datetime.strptime(date_raw, '%Y-%m-%d')
         except Exception:
             flash('Invalid date', 'danger')
             return redirect(url_for('create_event'))
+        
         e = Event(title=title, category=category, date=date, time_str=time_str,
-                  location=location, description=description, image=image)
+                  location=location, description=description, image=image_filename)
         db.session.add(e)
         db.session.commit()
         flash('Event created', 'success')
         return redirect(url_for('index'))
+    
     return render_template('create.html', year=datetime.now().year)
 
 # --- SECURED ROUTE ---
@@ -123,6 +156,7 @@ def edit_event(event_id):
     if not (current_user.is_admin_user or getattr(current_user, 'is_organizer_user', False)):
         flash('Only organizers or admins can edit events.', 'danger')
         return redirect(url_for('event_detail', event_id=event_id))
+    
     e = Event.query.get_or_404(event_id)
 
     if request.method == 'POST':
@@ -139,7 +173,25 @@ def edit_event(event_id):
         e.time_str = request.form.get('time_str')
         e.location = request.form.get('location')
         e.description = request.form.get('description')
-        e.image = request.form.get('image') or e.image
+        
+        # Handle file upload for editing
+        if 'image' in request.files:
+            file = request.files['image']
+            if file and file.filename != '' and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                # Create unique filename using timestamp
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_')
+                unique_filename = timestamp + filename
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+                
+                # Ensure upload directory exists
+                os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+                
+                file.save(file_path)
+                e.image = f'uploads/{unique_filename}'
+            elif file and file.filename != '':
+                flash('Invalid file type. Please upload an image (PNG, JPG, JPEG, GIF, WEBP).', 'danger')
+                return redirect(url_for('edit_event', event_id=event_id))
 
         try:
             db.session.commit()
@@ -311,6 +363,9 @@ def seed_if_empty():
 
 if __name__ == '__main__':
     with app.app_context():
+        # Ensure upload directory exists
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        
         # Ensure schema is up-to-date
         ensure_schema()
         
@@ -324,3 +379,4 @@ if __name__ == '__main__':
             print('Database loaded successfully')
 
     app.run(debug=True)
+       

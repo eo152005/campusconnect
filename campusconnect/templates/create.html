@@ -3,7 +3,7 @@
 <div class="container mt-4">
   <div class="card p-4 shadow-sm">
     <h3>Create Event</h3>
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
       <div class="form-row">
         <div class="form-group col-md-6">
           <label>Title</label>
@@ -32,11 +32,31 @@
         <label>Description</label>
         <textarea name="description" class="form-control" rows="4"></textarea>
       </div>
+      
+      <!-- Image Upload Section -->
       <div class="form-group">
-        <label>Image filename (relative to static/, e.g. images/event1.jpg)</label>
-        <input name="image" class="form-control" placeholder="images/event1.jpg">
+        <label for="image">Event Image</label>
+        <div class="custom-file">
+          <input type="file" class="custom-file-input" id="image" name="image" accept="image/*">
+          <label class="custom-file-label" for="image">Choose image file...</label>
+        </div>
+        <small class="form-text text-muted">
+          Upload an event image. Allowed formats: PNG, JPG, JPEG, GIF, WEBP. Max size: 2MB.
+          <strong class="text-primary">Recommended: 16:9 landscape ratio (e.g., 1200×675) for best display.</strong>
+        </small>
       </div>
-      <button class="btn btn-primary">Create</button>
+      
+      <!-- Alternative image URL field -->
+      <div class="form-group">
+        <label>Or specify image URL (alternative to upload)</label>
+        <input name="image_url" class="form-control" placeholder="images/event1.jpg">
+        <small class="form-text text-muted">
+          Use this field if you want to use an existing image from the static folder instead of uploading a new one.
+        </small>
+      </div>
+
+      <button type="submit" class="btn btn-primary">Create Event</button>
+      <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
     </form>
   </div>
 </div>
